@@ -3,6 +3,7 @@
 .RData
 .Ruserdata
 
+/*.tex
 /Bibliometrie_cache/
 /Bibliometrie_files/
-
+/libs/

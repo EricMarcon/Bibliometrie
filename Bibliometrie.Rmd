@@ -13,11 +13,11 @@ preamble: >
 bibliography: references.bib
 lang: french # english
 output:
-  bookdown::gitbook: default
-  bookdown::word_document2: default
   bookdown::pdf_book:
     base_format: EcoFoG::memo
     keep_tex: TRUE
+  bookdown::word_document2: default
+  bookdown::gitbook: default
 ---
 
 <!-- Options de knitr et de R (librairies, ...) --> 
@@ -34,7 +34,7 @@ Library <- function(Packages) {
   invisible(sapply(Packages, InstallAndLoad))
 }
 # Ajouter les packages nécessaires ici
-Library(c("kableExtra", "scholar", "tidyverse", "ggraph", "bibliometrix", "tm", "wordcloud", "SnowballC"))
+Library(c("kableExtra", "scholar", "tidyverse", "ggraph", "bibliometrix", "tm", "wordcloud"))
 ```
 
 <!-- Début du document ci-dessous --> 
@@ -88,9 +88,7 @@ get_citation_history(AuthorID) %>%
   ggplot(aes(x = year, y = cites)) +
     geom_line() + 
     geom_point() +
-    # https://www.r-bloggers.com/put-google-scholar-citations-on-your-personal-website-with-r-scholar-ggplot2-and-cron/
-    annotate('text', label = format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z"),
-             x = -Inf, y = Inf, vjust = 1.5, hjust = -0.05, size = 3, colour = 'gray')
+    labs(caption= format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z"))
 ```
 
 
