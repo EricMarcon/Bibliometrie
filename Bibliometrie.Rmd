@@ -1,0 +1,377 @@
+---
+title: "Bibliométrie"
+author:
+  - name: Eric Marcon
+abstract: >
+  Utilisation de Google Scholar et de Scopus avec R pour analyser les publications d'une structure ou d'un auteur.
+date: "`r format(Sys.time(), '%d %B %Y')`"
+pdftoc: yes
+preamble: >
+  \usepackage{textcomp}
+  \DeclareUnicodeCharacter{B0}{\textdegree}
+  \hyphenation{bio-di-ver-si-ty sap-lings}
+bibliography: references.bib
+lang: french # english
+output:
+  bookdown::gitbook: default
+  bookdown::word_document2: default
+  bookdown::pdf_book:
+    base_format: EcoFoG::memo
+    keep_tex: TRUE
+---
+
+<!-- Options de knitr et de R (librairies, ...) --> 
+
+```{r Options, echo=FALSE, message=FALSE}
+knitr::opts_chunk$set(cache=TRUE, echo = TRUE, tidy=FALSE, tidy.opts=list(blank=FALSE, width.cutoff=50), out.width='\\maxwidth')
+options(width=50)
+# Installation des packages si nécessaire et chargement
+Library <- function(Packages) {
+  InstallAndLoad <- function(Package) {
+    if (!Package %in% installed.packages()[, 1]) {install.packages(Package, repos="https://cran.rstudio.com/")}
+    require(Package, character.only = TRUE)
+  }
+  invisible(sapply(Packages, InstallAndLoad))
+}
+# Ajouter les packages nécessaires ici
+Library(c("kableExtra", "scholar", "tidyverse", "ggraph", "bibliometrix", "tm", "wordcloud", "SnowballC"))
+```
+
+<!-- Début du document ci-dessous --> 
+
+
+# Google Scholar
+
+Le package _scholar_ permet d'accéder à l'API de Google Scholar.
+L'objectif est d'analyser la production d'un auteur (ou d'une structure) disposant d'un identifiant, donc d'une page, Google Scholar.
+
+Le paramètre de base est l'identifiant de l'auteur :
+
+```{r}
+AuthorID <- "4iLBmbUAAAAJ" # Eric Marcon
+# AuthorID <- "8XqZyDUAAAAJ" # UMR EcoFoG
+```
+
+La vignette du package fournit la majorité du code utile.
+
+```{r, eval=FALSE}
+vignette(topic = "scholar", package = "scholar")
+```
+
+## Information sur l'auteur
+
+La fonction `get_profile` retourne une liste avec les informations sur l'auteur.
+
+```{r}
+library("scholar")
+get_profile(AuthorID)
+```
+
+## Liste des publications
+
+La fonction `get_publications` retourne un dataframe contenant toutes les publications.
+Les colonnes contiennent le titre, la liste des auteurs (séparés par des virgules), le nom du journal, la pagination (sous la forme Volume (nnuméro), pages), le nombre de citations et les années correspondantes (sous la forme de vecteurs), et deux identifiants internes de la publication (`cid` et `pubid`).
+
+```{r}
+Publications <- get_publications(AuthorID)
+str(Publications)
+```
+
+
+## Citations par année
+
+Evolution du nombre de citations d'un auteur :
+```{r}
+library("ggplot2")
+  
+get_citation_history(AuthorID) %>%
+  ggplot(aes(x = year, y = cites)) +
+    geom_line() + 
+    geom_point() +
+    # https://www.r-bloggers.com/put-google-scholar-citations-on-your-personal-website-with-r-scholar-ggplot2-and-cron/
+    annotate('text', label = format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z"),
+             x = -Inf, y = Inf, vjust = 1.5, hjust = -0.05, size = 3, colour = 'gray')
+```
+
+
+Suivi d'un article en particulier (le plus cité: les articles sont classés par ordre décroissant du nombre de citations) :
+
+```{r}
+NumArticle <- 1
+Reference <- with(Publications[NumArticle, ], 
+  paste(author, " (", year, ") ", journal, ". ", number, sep=""))
+get_article_cite_history(AuthorID, Publications$pubid[NumArticle]) %>% 
+  ggplot(aes(year, cites)) +
+    geom_segment(aes(xend = year, yend = 0), size=1, color='darkgrey') +
+    geom_point(size=3, color='firebrick') +
+    labs(caption = Reference)
+```
+
+
+## Réseau d'auteurs
+
+`get_coauthors` retourne un dataframe contenant les coauteurs déclarés par l'auteur sur sa page et leurs coauteurs.
+La profondeur `n_deep` du graphe permet d'augmenter le nombre de niveaux de coauteurs mais ne peut pas être mise à 0 pour obtenir seulement les coauteurs directs.
+Les valeurs par défaut sont 5 coauteurs et une profondeur de 1.
+
+```{r}
+get_coauthors(AuthorID, n_coauthors = 7, n_deep=1) %>% 
+  plot_coauthors
+```
+
+Les coateurs réels, définis par le nombre de publications écrites en commun, est à rechercher dans le tableau des publications.
+
+```{r, message=FALSE}
+# Paramètres
+MinCopublications <- 2
+MaxCoauteurs <- 100
+
+library("magrittr")
+# Vecteur des coauteurs de publications, sans accents
+Publications %>% 
+  mutate(AuthorsASCII=iconv(author, from="UTF-8", to="ASCII//TRANSLIT")) %$% 
+  AuthorsASCII ->
+  AuthorsASCII
+# Auteurs uniques
+AuthorsASCII %>% 
+  paste(collapse=", ") %>% 
+  str_split(pattern=", ") %>% 
+  unlist %>% 
+  unique ->
+  UniqueAuthors
+# Elimination de ... (= et al.)
+UniqueAuthors <- UniqueAuthors[UniqueAuthors != "..."]
+# Matrice d'autorat: une ligne par articles, auteurs en colonnes, valeurs logiques
+PaperAuthoredBy <- sapply(UniqueAuthors, function(Author) str_detect(AuthorsASCII, Author))
+# Filtrage des auteurs
+tibble(Author=UniqueAuthors, NbPapers=colSums(PaperAuthoredBy)) %>% 
+  filter(NbPapers >= MinCopublications) %>% 
+  arrange(desc(NbPapers)) %>% 
+  slice(1:MaxCoauteurs) ->
+  NbPapersPerAuthor
+# Recalcul de la matrice d'autorat réduite
+PaperAuthoredBy <- sapply(NbPapersPerAuthor$Author, function(Author) str_detect(AuthorsASCII, Author))
+# Matrice d'adjacence
+adjacencyMatrix <- t(PaperAuthoredBy) %*% PaperAuthoredBy
+# Graphe d'adjacence  
+# (https://paulvanderlaken.com/2017/10/31/network-visualization-with-igraph-and-ggraph/)
+library("igraph")
+g <- graph.adjacency(adjacencyMatrix, mode = "undirected", diag = FALSE)
+V(g)$Degree <- degree(g, mode = 'in') # Nombre de liens
+V(g)$Name <- NbPapersPerAuthor$Author # Etiquettes des noeuds
+# Figure
+library("ggraph")
+ggraph(g, layout = "auto") +
+  geom_edge_diagonal(alpha = 1, label_colour = "blue") +
+  geom_node_label(aes(label = Name, size = log(Degree), fill = Degree)) +
+  scale_fill_gradient(high = "blue", low = "lightblue") +
+  theme(plot.background = element_rect(fill = "beige"),
+    panel.border = element_blank(),
+    panel.grid = element_blank(),
+    legend.position = "none",
+    axis.text = element_blank(), 
+    axis.title = element_blank(),
+    axis.ticks = element_blank()) +
+  labs(title = paste("Coauthorship Network of", get_profile(AuthorID)$name),
+       subtitle = "Publications with more than one Google Scholar citation included",
+       caption = paste("Coauthors with at least", MinCopublications, "copublications"))
+```
+
+Nombres de publications :
+```{r}
+knitr::kable(NbPapersPerAuthor, caption="Nombre de documents par auteur",
+             longtable = TRUE, booktabs = TRUE) %>%
+  kableExtra::kable_styling(bootstrap_options = "striped")
+```
+
+
+# Scopus et Web of Science
+
+Le package _bibliometrix_ permet d'exploiter les données des bases de données commerciales majeures.
+
+La vignette du package décrit l'ensemble de ses possibilités.
+
+```{r, eval=FALSE}
+vignette(topic = "bibliometrix-vignette", package = "bibliometrix")
+```
+
+## Lecture des données
+
+Voir la première partie de la vignette.
+Sur le site de Scopus (utlisé en exemple), sélectionner les références utiles et les exporter dans un fichier Bibtex.
+L'export doit contenir tous les champs, y compris le résumé et les documents cités.
+
+Le fichier est ensuite lu et converti:
+
+```{r, message=FALSE}
+library(bibliometrix)
+# Fichier de données au format bibtex, exporté de Scopus
+D <- readFiles("scopus.bib")
+# Conversion en dataframe
+M <- convert2df(D, dbsource="scopus", format="bibtex")
+```
+
+## Analyses basiques
+
+Les analyses de base sont retournées par la fonction `biblioAnalysis`.
+
+```{r}
+BA <- biblioAnalysis(M)
+summary(BA, k=5)
+plot(BA, k=5)
+```
+
+
+## Documents et auteurs cités
+
+Les documents les plus cités par la base bibliographique sont retournés par la commande `citations`, par article ou par auteur.
+
+```{r}
+CAR <- citations(M, field = "article")
+CAR$Cited[1:5] %>% 
+  as_tibble %>% 
+  rename(Article=CR, Citations=n) %>% 
+  knitr::kable(caption="Citations les plus fréquentes par les documents de la base de données bibliographique",
+             longtable = TRUE, booktabs = TRUE) %>%
+  kableExtra::kable_styling(bootstrap_options = "striped")
+```
+
+Les auteurs les plus cités :
+
+```{r}
+CAU <- citations(M, field = "author")
+CAU$Cited[1:5] %>% 
+  as_tibble %>% 
+  rename(Auteur=CR, Citations=n) %>% 
+  knitr::kable(caption="Auteurs les plus cités par les documents de la base de données bibliographique",
+             longtable = TRUE, booktabs = TRUE) %>%
+  kableExtra::kable_styling(bootstrap_options = "striped")
+```
+
+## Collaborations
+
+Un réseau de collaboration entre les pays des auteurs est retourné par la fonction `biblioNetwork`.
+
+```{r}
+NbCountries <- 15
+# Create a country collaboration network
+mAU_CO <- metaTagExtraction(M, Field = "AU_CO", sep = ";")
+NetMatrix <- biblioNetwork(mAU_CO, analysis = "collaboration", network = "countries", sep = ";")
+# Plot the network
+netC <- networkPlot(NetMatrix, n = NbCountries, Title = "Country Collaboration", type = "circle", size=TRUE, remove.multiple=FALSE)
+```
+
+Le réseau des auteurs est obtenu de la même façon.
+
+```{r, tidy=TRUE}
+NbAuthors <- 15
+# Réseau d'auteurs
+AuthorNet <- biblioNetwork(M, analysis="collaboration", network="authors", sep = ";")
+netA <- networkPlot(AuthorNet, n = NbAuthors, Title = "Author Collaboration", type = "circle", size=TRUE, remove.multiple=FALSE)
+```
+
+# Analyse des résumés
+
+Les résumés des publications se trouvent dans la colonne `AB` de la base importée par _bibliometrix_.
+Ils sont en Anglais.
+
+## Corpus
+
+Le package `tm` permet de constituer un corpus.
+
+```{r}
+library("tm")
+M$AB %>% 
+  VectorSource %>% 
+  VCorpus %>% 
+  tm_map(PlainTextDocument) %>% 
+  tm_map(content_transformer(tolower)) ->
+  MonCorpus
+```
+
+La fonction `tm_map` permet d'appliquer une fonction quelconque à chaque élément du corpus, c'est-à-dire à chaque résumé.
+Les fonctions standard, n'appartenant pas au package `tm`, doivent être appliquées par l'intermédiaire de la fonction `content_transformer` pour ne pas dégrader la structure du corpus : dans le code précédent, la fonction `tolower` est appliquée à chaque résumé pour le passer en minuscules,  alors que la création de corpus est en majuscules.
+
+## Nettoyage du corpus
+
+Des mots sémantiquement identiques ont plusieurs formes.
+Le traitement le plus rigoureux consiste à les réduire à leur radical mais le résultat n'est pas très lisible. 
+La fonction `stemDocument` permet de le faire : il suffit de l'utiliser à la place de `PlainTextDocument` dans le code ci-dessus.
+Un bon compromis consiste à supprimer les formes plurielles, par une fonction ad-hoc : ce sera fait plus tard.
+
+Les déterminants, conjonctions, etc. sont les mots les plus fréquents mais n'ont pas d'intérêt pour l'analyse.
+La fonction `removeWords` permet de retirer une liste de mots.
+`stopwords` fournit la liste de ces mots dans une langue au choix.
+`removeNumbers` retire les nombres comme _one_, _two_, etc. et `removePunctuation` retire la ponctuation.
+
+```{r}
+MonCorpus %<>% tm_map(removeWords, stopwords("english")) %>%
+  tm_map(removeNumbers) %>% 
+  tm_map(removePunctuation) 
+```
+
+Une liste de mots complémentaire est nécessaire pour supprimer des mots inutiles mais fréquents.
+Elle peut être complétée de façon itérative pour retirer des mots parasites du résultat final.
+
+```{r, tidy=TRUE}
+ExtraWords <- c("use", "used", "using", "results", "may", "across", "high", "higher", "low", "show", "showed", "study", "studies", "studied", "however", "can", "our", "based", "including", "within", "total", "among", "found", "due", "also", "well", "strong", "large", "important", "first", "known")
+MonCorpus %<>% tm_map(removeWords, ExtraWords)
+```
+
+## Mots du corpus
+
+L'objectif est de transformer le corpus en un vecteur d'abondance des mots utilisés.
+`TermDocumentMatrix` crée un objet spécifique au package _tm_ qui pose des problèmes de traitement. 
+Cet objet est transformé en un vecteur d'abondances.
+
+```{r, tidy=TRUE}
+TDM <- TermDocumentMatrix(MonCorpus, control = list(minWordLength = 3))
+AbdMots <- sort(rowSums(as.matrix(TDM)), decreasing=TRUE)
+```
+
+Le vecteur de mots contient des formes singulières et plurielles.
+Elles peuvent être regroupées selon un modèle simple : si un mot existe avec et sans _s_ ou _es_ final, la forme singulière est sans _s_ ou _es_. 
+Des pluriels particuliers peuvent être ajoutés selon les besoins.
+
+```{r}
+# Adapté de https://github.com/mkfs/misc-text-mining/blob/master/R/wordcloud.R
+aggregate_plurals <- function (v) {
+	aggr_fn <- function(v, singular, plural) {
+		if (! is.na(v[plural])) {
+			v[singular] <- v[singular] + v[plural]
+			v <- v[-which(names(v) == plural)]
+		}
+		return(v)
+	}
+	for (n in names(v)) {
+		n_pl <- paste(n, 's', sep='')
+		v <- aggr_fn(v, n, n_pl)
+		n_pl <- paste(n, 'es', sep='')
+		v <- aggr_fn(v, n, n_pl)
+		# cas particuliers
+		if (endsWith(n, "y")) {
+		  n <-  substr(n, 1, nchar(n)-1)
+		  n_pl <- paste(n, 'ies', sep='')
+		  }
+		if (n == "genus") {
+		  n_pl <- "genera"
+		  v <- aggr_fn(v, n, n_pl)
+		}
+	}
+	return(v)
+}
+
+AbdMots %<>% aggregate_plurals
+```
+
+
+## Nuage de mots
+
+Le résultat final est un nuage de mots.
+
+```{r, tidy=TRUE, warning=FALSE}
+library("wordcloud")
+df <- data.frame(word=names(AbdMots), freq=AbdMots)
+wordcloud(df$word, df$freq, max.words=100, random.order=FALSE, rot.per=0.35, use.r.layout=FALSE, colors=brewer.pal(8, "Dark2"))
+```
+
