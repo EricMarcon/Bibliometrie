@@ -13,11 +13,11 @@ preamble: >
 bibliography: references.bib
 lang: french # english
 output:
+  bookdown::gitbook: default
+  bookdown::word_document2: default
   bookdown::pdf_book:
     base_format: EcoFoG::memo
     keep_tex: TRUE
-  bookdown::word_document2: default
-  bookdown::gitbook: default
 ---
 
 <!-- Options de knitr et de R (librairies, ...) --> 
@@ -70,11 +70,11 @@ get_profile(AuthorID)
 ## Liste des publications
 
 La fonction `get_publications` retourne un dataframe contenant toutes les publications.
-Les colonnes contiennent le titre, la liste des auteurs (séparés par des virgules), le nom du journal, la pagination (sous la forme Volume (nnuméro), pages), le nombre de citations et les années correspondantes (sous la forme de vecteurs), et deux identifiants internes de la publication (`cid` et `pubid`).
+Les colonnes contiennent le titre, la liste des auteurs (séparés par des virgules), le nom du journal, la pagination (sous la forme _Volume (numéro), pages_), le nombre de citations et les années correspondantes (sous la forme de vecteurs), et deux identifiants internes de la publication (`cid` et `pubid`).
 
-```{r}
+```{r, tidy=TRUE}
 Publications <- get_publications(AuthorID)
-str(Publications)
+colnames(Publications)
 ```
 
 
@@ -148,7 +148,8 @@ tibble(Author=UniqueAuthors, NbPapers=colSums(PaperAuthoredBy)) %>%
   slice(1:MaxCoauteurs) ->
   NbPapersPerAuthor
 # Recalcul de la matrice d'autorat réduite
-PaperAuthoredBy <- sapply(NbPapersPerAuthor$Author, function(Author) str_detect(AuthorsASCII, Author))
+PaperAuthoredBy <- sapply(NbPapersPerAuthor$Author, 
+                          function(Author) str_detect(AuthorsASCII, Author))
 # Matrice d'adjacence
 adjacencyMatrix <- t(PaperAuthoredBy) %*% PaperAuthoredBy
 # Graphe d'adjacence  
@@ -212,11 +213,114 @@ M <- convert2df(D, dbsource="scopus", format="bibtex")
 ## Analyses basiques
 
 Les analyses de base sont retournées par la fonction `biblioAnalysis`.
+Le résultat est un objet de type `bibliometrix`.
+Les méthodes `summary` et `plot` de cet objet sont malheureusement mal écrites et renvoient tous les résultats à l'écran sans possibilité de les afficher séparément. 
+Pour cette raison, le code ci-dessous reproduit le code original, séparément pour chaque figure.
 
 ```{r}
+k <- 5 # Nombre d'auteurs à afficher
 BA <- biblioAnalysis(M)
-summary(BA, k=5)
-plot(BA, k=5)
+summary(BA, k)
+# plot(BA) renvoie tous les graphiques à la suite.
+# Le code ci-dessous (copié de plot.bibliometrix) les produit séparément.
+x <- BA ; xx<- as.data.frame(x$Authors[1:k])
+ggplot(data = xx, aes(x = xx$AU, y = xx$Freq)) + geom_bar(stat = "identity", 
+        fill = "steelblue") + labs(title = "Most productive Authors", 
+        x = "Authors") + labs(y = "N. of Documents") + theme_minimal() + 
+        coord_flip()
+if (!is.na(x$CountryCollaboration[1, 1])) {
+  xx = x$CountryCollaboration[1:k,]
+  xx = xx[order(-(xx$SCP + xx$MCP)),]
+  xx1 = cbind(xx[, 1:2], rep("SCP", k))
+  names(xx1) = c("Country", "Freq", "Collaboration")
+  xx2 = cbind(xx[, c(1, 3)], rep("MCP", k))
+  names(xx2) = c("Country", "Freq", "Collaboration")
+  xx = rbind(xx2, xx1)
+  xx$Country = factor(xx$Country, levels = xx$Country[1:dim(xx2)[1]])
+  ggplot(data = xx, aes(x = xx$Country, y = xx$Freq, fill = xx$Collaboration)) + 
+    geom_bar(stat = "identity") +
+    scale_x_discrete(limits = rev(levels(xx$Country))) +
+    scale_fill_discrete(name = "Collaboration", breaks = c("SCP", "MCP")) +
+    labs( title = "Most Productive Countries",
+          x = "Countries",
+          y = "N. of Documents",
+          caption = "SCP: Single Country Publications, MCP: Multiple Country Publications") +
+    theme_minimal() + 
+    theme(plot.caption = element_text(size = 9, hjust = 0.5, color = "blue", face = "italic")) +
+    coord_flip()
+}
+Tab = table(x$Years)
+YY = setdiff(seq(min(x$Years), max(x$Years)), names(Tab))
+Y = data.frame(Year = as.numeric(c(names(Tab), YY)), 
+               Freq = c(as.numeric(Tab), rep(0, length(YY))))
+Y = Y[order(Y$Year),]
+names(Y) = c("Year", "Freq")
+ggplot(Y, aes(x = Y$Year, y = Y$Freq)) + 
+  geom_line() +
+  geom_area(fill = "#002F80", alpha = 0.5) + 
+  labs(x = "Year", y = "Articles", title = "Annual Scientific Production") +
+  scale_x_continuous(breaks = (Y$Year[seq(1, length(Y$Year), by = 2)])) + 
+  theme(text = element_text(color = "#444444"),
+    panel.background = element_rect(fill = "#EFEFEF"),
+    panel.grid.minor = element_line(color = "#FFFFFF"),
+    panel.grid.major = element_line(color = "#FFFFFF"),
+    plot.title = element_text(size = 24),
+    axis.title = element_text(size = 14, color = "#555555"),
+    axis.title.y = element_text(vjust = 1, angle = 0),
+    axis.title.x = element_text(hjust = 0))
+
+Table2 = NA
+if (!(x$DB %in% c("COCHRANE", "PUBMED"))) {
+  Table2 = aggregate(x$TotalCitation, by = list(x$Years), length)
+  Table2$xx = aggregate(x$TotalCitation, by = list(x$Years), mean)$x
+  Table2$Annual = NA
+  d = date()
+  d = as.numeric(substring(d, nchar(d) - 3, nchar(d)))
+  Table2$Years = d - Table2$Group.1
+  Table2$Annual = Table2$xx / Table2$Years
+  names(Table2) = c("Year", "N", "MeanTCperArt", "MeanTCperYear", "CitableYears")
+  YY = setdiff(seq(min(x$Years), max(x$Years)), Table2$Year)
+  if (length(YY > 0)) {
+    YY = data.frame(YY, 0, 0, 0, 0)
+    names(YY) = c("Year", "N", "MeanTCperArt", "MeanTCperYear", "CitableYears")
+    Table2 = rbind(Table2, YY)
+    Table2 = Table2[order(Table2$Year),]
+    row.names(Table2) = Table2$Year
+ }
+  ggplot(Table2, aes(x = Table2$Year, y = Table2$MeanTCperYear)) +
+    geom_line() + 
+    geom_area(fill = "#002F80", alpha = 0.5) +
+    labs(x = "Year", y = "Citations", title = "Average Article Citations per Year") +
+    scale_x_continuous(breaks = (Table2$Year[seq(1, length(Table2$Year), by = 2)])) + 
+    theme(
+      text = element_text(color = "#444444"),
+      panel.background = element_rect(fill = "#EFEFEF"),
+      panel.grid.minor = element_line(color = "#FFFFFF"),
+      panel.grid.major = element_line(color = "#FFFFFF"),
+      plot.title = element_text(size = 24),
+      axis.title = element_text(size = 14,
+      color = "#555555"),
+      axis.title.y = element_text(vjust = 1,
+      angle = 0),
+      axis.title.x = element_text(hjust = 0)
+      )
+  
+  ggplot(Table2, aes(x = Table2$Year, y = Table2$MeanTCperArt)) +
+    geom_line() + 
+    geom_area(fill = "#002F80", alpha = 0.5) +
+    labs(x = "Year", y = "Citations", title = "Average Total Citations per Year") +
+    scale_x_continuous(breaks = (Table2$Year[seq(1, length(Table2$Year), by = 2)])) + 
+    theme(
+      text = element_text(color = "#444444"),
+      panel.background = element_rect(fill = "#EFEFEF"),
+      panel.grid.minor = element_line(color = "#FFFFFF"),
+      panel.grid.major = element_line(color = "#FFFFFF"),
+      plot.title = element_text(size = 24),
+      axis.title = element_text(size = 14, color = "#555555"),
+      axis.title.y = element_text(vjust = 1, angle = 0),
+      axis.title.x = element_text(hjust = 0, angle = 0)
+    )
+}
 ```
 
 
@@ -228,10 +332,11 @@ Les documents les plus cités par la base bibliographique sont retournés par la
 CAR <- citations(M, field = "article")
 CAR$Cited[1:5] %>% 
   as_tibble %>% 
-  rename(Article=CR, Citations=n) %>% 
-  knitr::kable(caption="Citations les plus fréquentes par les documents de la base de données bibliographique",
-             longtable = TRUE, booktabs = TRUE) %>%
-  kableExtra::kable_styling(bootstrap_options = "striped")
+  rename(Article = CR, Citations=n) %>% 
+  knitr::kable(caption =
+      "Citations les plus fréquentes par les documents de la base de données bibliographique",
+      longtable = TRUE, booktabs = TRUE) %>%
+  kableExtra::kable_styling(full_width=TRUE, bootstrap_options = "striped")
 ```
 
 Les auteurs les plus cités :
@@ -241,8 +346,9 @@ CAU <- citations(M, field = "author")
 CAU$Cited[1:5] %>% 
   as_tibble %>% 
   rename(Auteur=CR, Citations=n) %>% 
-  knitr::kable(caption="Auteurs les plus cités par les documents de la base de données bibliographique",
-             longtable = TRUE, booktabs = TRUE) %>%
+  knitr::kable(
+    caption="Auteurs les plus cités par les documents de la base de données bibliographique",
+    longtable = TRUE, booktabs = TRUE) %>%
   kableExtra::kable_styling(bootstrap_options = "striped")
 ```
 
@@ -250,7 +356,7 @@ CAU$Cited[1:5] %>%
 
 Un réseau de collaboration entre les pays des auteurs est retourné par la fonction `biblioNetwork`.
 
-```{r}
+```{r, tidy=TRUE}
 NbCountries <- 15
 # Create a country collaboration network
 mAU_CO <- metaTagExtraction(M, Field = "AU_CO", sep = ";")
@@ -300,7 +406,7 @@ Un bon compromis consiste à supprimer les formes plurielles, par une fonction a
 Les déterminants, conjonctions, etc. sont les mots les plus fréquents mais n'ont pas d'intérêt pour l'analyse.
 La fonction `removeWords` permet de retirer une liste de mots.
 `stopwords` fournit la liste de ces mots dans une langue au choix.
-`removeNumbers` retire les nombres comme _one_, _two_, etc. et `removePunctuation` retire la ponctuation.
+`removeNumbers` retire les nombres comme _one_, _two_, etc. et la fonction  `removePunctuation` retire la ponctuation.
 
 ```{r}
 MonCorpus %<>% tm_map(removeWords, stopwords("english")) %>%
