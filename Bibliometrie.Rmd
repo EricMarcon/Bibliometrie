@@ -13,7 +13,10 @@ preamble: >
 bibliography: references.bib
 lang: french # english
 output:
-  bookdown::gitbook: default
+  bookdown::gitbook: 
+    config:
+      download: 
+        - ["Bibliometrie.pdf", "PDF"]
   bookdown::word_document2: default
   bookdown::pdf_book:
     base_format: EcoFoG::memo
