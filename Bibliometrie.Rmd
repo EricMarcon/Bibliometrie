@@ -91,7 +91,7 @@ get_citation_history(AuthorID) %>%
   ggplot(aes(x = year, y = cites)) +
     geom_line() + 
     geom_point() +
-    labs(caption= format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z"))
+    labs(caption= format(Sys.time(), "%Y-%m-%d %H:%M (GMT %Z)"))
 ```
 
 
@@ -120,7 +120,7 @@ get_coauthors(AuthorID, n_coauthors = 7, n_deep=1) %>%
   plot_coauthors
 ```
 
-Les coateurs réels, définis par le nombre de publications écrites en commun, est à rechercher dans le tableau des publications.
+Les coateurs réels, définis par le nombre de publications écrites en commun, sont à rechercher dans le tableau des publications.
 
 ```{r, message=FALSE}
 # Paramètres
@@ -412,16 +412,16 @@ La fonction `removeWords` permet de retirer une liste de mots.
 `removeNumbers` retire les nombres comme _one_, _two_, etc. et la fonction  `removePunctuation` retire la ponctuation.
 
 ```{r}
-MonCorpus %<>% tm_map(removeWords, stopwords("english")) %>%
-  tm_map(removeNumbers) %>% 
-  tm_map(removePunctuation) 
+MonCorpus %<>% tm_map(removePunctuation) %>% 
+  tm_map(removeNumbers) %>%
+  tm_map(removeWords, stopwords("english"))
 ```
 
 Une liste de mots complémentaire est nécessaire pour supprimer des mots inutiles mais fréquents.
 Elle peut être complétée de façon itérative pour retirer des mots parasites du résultat final.
 
 ```{r, tidy=TRUE}
-ExtraWords <- c("use", "used", "using", "results", "may", "across", "high", "higher", "low", "show", "showed", "study", "studies", "studied", "however", "can", "our", "based", "including", "within", "total", "among", "found", "due", "also", "well", "strong", "large", "important", "first", "known")
+ExtraWords <- c("use", "used", "using", "results", "may", "across", "high", "higher", "low", "show", "showed", "study", "studies", "studied", "however", "can", "our", "based", "including", "within", "total", "among", "found", "due", "also", "well", "strong", "large", "important", "first", "known", "one", "two", "three")
 MonCorpus %<>% tm_map(removeWords, ExtraWords)
 ```
 
