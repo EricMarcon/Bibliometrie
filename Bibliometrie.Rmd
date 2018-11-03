@@ -13,14 +13,14 @@ preamble: >
 bibliography: references.bib
 lang: french # english
 output:
+  bookdown::pdf_book:
+    base_format: EcoFoG::memo
+    keep_tex: TRUE
+  bookdown::word_document2: default
   bookdown::gitbook: 
     config:
       download: 
         - ["Bibliometrie.pdf", "PDF"]
-  bookdown::word_document2: default
-  bookdown::pdf_book:
-    base_format: EcoFoG::memo
-    keep_tex: TRUE
 ---
 
 <!-- Options de knitr et de R (librairies, ...) --> 
