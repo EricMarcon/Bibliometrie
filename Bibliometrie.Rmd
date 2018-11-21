@@ -12,18 +12,20 @@ preamble: >
   \hyphenation{bio-di-ver-si-ty sap-lings}
 bibliography: references.bib
 lang: french # english
+always_allow_html: yes
 output:
+  bookdown::html_document2:
+    theme: sandstone
+    toc: yes
+    toc_float: yes
   bookdown::pdf_book:
     base_format: EcoFoG::memo
     keep_tex: TRUE
   bookdown::word_document2: default
   bookdown::gitbook: 
     config:
-      download: 
-        - ["Bibliometrie.pdf", "PDF"]
+      download: null
 ---
-
-<!-- Options de knitr et de R (librairies, ...) --> 
 
 ```{r Options, echo=FALSE, message=FALSE}
 knitr::opts_chunk$set(cache=TRUE, echo = TRUE, tidy=FALSE, tidy.opts=list(blank=FALSE, width.cutoff=50), out.width='\\maxwidth')
@@ -40,7 +42,6 @@ Library <- function(Packages) {
 Library(c("kableExtra", "scholar", "tidyverse", "ggraph", "bibliometrix", "tm", "wordcloud"))
 ```
 
-<!-- Début du document ci-dessous --> 
 
 
 # Google Scholar
