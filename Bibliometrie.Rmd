@@ -39,7 +39,7 @@ Library <- function(Packages) {
   invisible(sapply(Packages, InstallAndLoad))
 }
 # Ajouter les packages nécessaires ici
-Library(c("kableExtra", "scholar", "tidyverse", "ggraph", "bibliometrix", "tm", "wordcloud"))
+Library(c("kableExtra", "scholar", "tidyverse", "ggraph", "bibliometrix", "tm", "wordcloud", "entropart"))
 ```
 
 
@@ -201,7 +201,7 @@ vignette(topic = "bibliometrix-vignette", package = "bibliometrix")
 ## Lecture des données
 
 Voir la première partie de la vignette.
-Sur le site de Scopus (utlisé en exemple), sélectionner les références utiles et les exporter dans un fichier Bibtex.
+Sur le site de Scopus (utilisé en exemple), sélectionner les références utiles et les exporter dans un fichier Bibtex.
 L'export doit contenir tous les champs, y compris le résumé et les documents cités.
 
 Le fichier est ensuite lu et converti:
@@ -240,6 +240,26 @@ BAP$MostProdCountries
 BAP$AnnualScientProd
 BAP$AverArtCitperYear
 BAP$AverTotCitperYear
+```
+
+## h index
+
+L'indice h peut être calculé par auteur ou source, et depuis un nombre d'années choisi.
+Pour l'indice de toute la base bibliographique :
+
+```{r}
+(h <- Hindex(M, elements = "", years=50)$H)
+```
+
+Le graphique rang-citations peut être tracé par le package entropart.
+
+```{r}
+library("entropart")
+# Courbe rang-abondance, ajustée à une distribution log-normale
+autoplot(as.AbdVector(M$TC), ylab = "Nombre de citations", xlab = "Rang", Distribution = "lnorm") +
+# Ajout de l'indice h
+  geom_hline(yintercept = h$h_index) +
+  geom_vline(xintercept = h$h_index)
 ```
 
 
