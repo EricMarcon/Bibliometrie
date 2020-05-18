@@ -11,7 +11,8 @@ preamble: >
   \DeclareUnicodeCharacter{B0}{\textdegree}
   \hyphenation{bio-di-ver-si-ty sap-lings}
 bibliography: references.bib
-lang: french # english
+lang: fr-FR # en-US
+babel: french # english
 always_allow_html: yes
 output:
   bookdown::html_document2:
@@ -117,7 +118,9 @@ La profondeur `n_deep` du graphe permet d'augmenter le nombre de niveaux de coau
 Les valeurs par défaut sont 5 coauteurs et une profondeur de 1.
 
 ```{r}
-get_coauthors(AuthorID, n_coauthors = 7, n_deep=1) %>% 
+get_coauthors(AuthorID, n_coauthors = 5, n_deep=1) %>%
+  # Bug in get_coauthors
+  filter(substr(coauthors, start = 1, stop = 8) != "Sort By ") %>%
   plot_coauthors
 ```
 
@@ -183,7 +186,7 @@ ggraph(g, layout = "auto") +
 Nombres de publications :
 ```{r}
 knitr::kable(NbPapersPerAuthor, caption="Nombre de documents par auteur",
-             longtable = TRUE, booktabs = TRUE) %>%
+             longtable = FALSE, booktabs = TRUE) %>%
   kableExtra::kable_styling(bootstrap_options = "striped")
 ```
 
@@ -231,7 +234,7 @@ Pour les afficher séparément, il faut stocker le résultat dans une variable (
 BAP <- plot(BA)
 ```
 
-```{r}
+```{r, warning=FALSE}
 # Graphiques disponibles
 BAP$MostProdAuthors
 BAP$MostProdCountries
@@ -243,11 +246,20 @@ BAP$AverTotCitperYear
 ## h index
 
 L'indice h peut être calculé par auteur ou source, et depuis un nombre d'années choisi.
+
+Pour tous les auteurs :
+
+```{r}
+Hindex(M, elements = dominance(BA)$Author, years=50)$H %>% 
+  arrange(desc(h_index))
+```
+
 Pour l'indice de toute la base bibliographique :
 
 ```{r}
-(h <- Hindex(M, elements = "", years=50)$H)
+(h <- Hindex(M, elements="*", years=50)$H)
 ```
+
 
 Le graphique rang-citations peut être tracé par le package entropart.
 
