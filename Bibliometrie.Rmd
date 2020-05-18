@@ -209,9 +209,7 @@ Le fichier est ensuite lu et converti:
 ```{r, message=FALSE}
 library(bibliometrix)
 # Fichier de données au format bibtex, exporté de Scopus
-D <- readFiles("scopus.bib")
-# Conversion en dataframe
-M <- convert2df(D, dbsource="scopus", format="bibtex")
+M <- convert2df("scopus.bib", dbsource="scopus", format="bibtex")
 ```
 
 ## Analyses basiques
