@@ -17,7 +17,7 @@ jobs:
         uses: r-lib/actions/setup-pandoc@v1
       - name: Install dependencies
         run: |
-          install.packages(c("bookdown", "remotes", "tinytex"))
+          install.packages(c("remotes", "bookdown", "formatR", "tinytex"))
           tinytex::install_tinytex()
           remotes::install_deps(dependencies = TRUE)
         shell: Rscript {0}
