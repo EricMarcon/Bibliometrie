@@ -1,0 +1,18 @@
+Package: Bibliométrie
+Title: Utilisation de Google Scholar et de Scopus avec R
+Version: 1.0.0
+Authors@R: c(
+  person("Eric", "Marcon", , "e.marcon@free.fr", c("aut", "cre"))
+  )
+URL: https://github.com/EricMarcon/Bibliometrie
+Depends:
+  R (>= 3.1.0)
+Imports:
+  bibliometrix,
+  ggraph,
+  kableExtra,
+  scholar,
+  tidyverse,
+  tm,
+  wordcloud
+License: GPL-3

@@ -22,10 +22,6 @@ output:
   bookdown::pdf_book:
     base_format: EcoFoG::memo
     keep_tex: TRUE
-  bookdown::word_document2: default
-  bookdown::gitbook: 
-    config:
-      download: null
 ---
 
 ```{r Options, echo=FALSE, message=FALSE}
