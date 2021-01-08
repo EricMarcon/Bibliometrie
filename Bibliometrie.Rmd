@@ -7,21 +7,20 @@ abstract: >
 date: "`r format(Sys.time(), '%d %B %Y')`"
 pdftoc: yes
 preamble: >
-  \usepackage{textcomp}
-  \DeclareUnicodeCharacter{B0}{\textdegree}
   \hyphenation{bio-di-ver-si-ty sap-lings}
 bibliography: references.bib
 lang: fr-FR # en-US
 babel: french # english
 always_allow_html: yes
 output:
+  bookdown::pdf_book:
+    base_format: EcoFoG::memo
+    latex_engine: xelatex
+    keep_tex: TRUE
   bookdown::html_document2:
     theme: sandstone
     toc: yes
     toc_float: yes
-  bookdown::pdf_book:
-    base_format: EcoFoG::memo
-    keep_tex: TRUE
 ---
 
 ```{r Options, echo=FALSE, message=FALSE}
