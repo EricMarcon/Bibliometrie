@@ -122,28 +122,32 @@ get_coauthors(AuthorID, n_coauthors = 5, n_deep=1) %>%
 
 Les coateurs réels, définis par le nombre de publications écrites en commun, sont à rechercher dans le tableau des publications.
 
-```{r, message=FALSE}
+```{r coauthors, message=FALSE}
 # Paramètres
 MinCopublications <- 2
 MaxCoauteurs <- 100
 
 library("magrittr")
 # Vecteur des coauteurs de publications, sans accents
-Publications %>% 
+get_publications(AuthorID) %>% 
   mutate(AuthorsASCII=iconv(author, from="UTF-8", to="ASCII//TRANSLIT")) %$% 
-  AuthorsASCII ->
+  AuthorsASCII %>% 
+  # Suppression des accents transformés en ' sur MacOS
+  str_replace("'", "") ->
   AuthorsASCII
 # Auteurs uniques
 AuthorsASCII %>% 
   paste(collapse=", ") %>% 
   str_split(pattern=", ") %>% 
   unlist %>% 
+  # Uniformisation de la casse
+  str_to_upper() %>% 
   unique ->
   UniqueAuthors
 # Elimination de ... (= et al.)
 UniqueAuthors <- UniqueAuthors[UniqueAuthors != "..."]
-# Matrice d'autorat: une ligne par articles, auteurs en colonnes, valeurs logiques
-PaperAuthoredBy <- sapply(UniqueAuthors, function(Author) str_detect(AuthorsASCII, Author))
+# Matrice d'autorat: une ligne par article, auteurs en colonnes, valeurs logiques
+PaperAuthoredBy <- sapply(UniqueAuthors, function(Author) str_detect(str_to_lower(AuthorsASCII), str_to_lower(Author)))
 # Filtrage des auteurs
 tibble(Author=UniqueAuthors, NbPapers=colSums(PaperAuthoredBy)) %>% 
   filter(NbPapers >= MinCopublications) %>% 
@@ -167,7 +171,8 @@ ggraph(g, layout = "auto") +
   geom_edge_diagonal(alpha = 1, label_colour = "blue") +
   geom_node_label(aes(label = Name, size = log(Degree), fill = Degree)) +
   scale_fill_gradient(high = "blue", low = "lightblue") +
-  theme(plot.background = element_rect(fill = "beige"),
+  theme(
+    plot.background = element_rect(fill = "beige"),
     panel.border = element_blank(),
     panel.grid = element_blank(),
     legend.position = "none",
