@@ -147,7 +147,7 @@ AuthorsASCII %>%
 # Elimination de ... (= et al.)
 UniqueAuthors <- UniqueAuthors[UniqueAuthors != "..."]
 # Matrice d'autorat: une ligne par article, auteurs en colonnes, valeurs logiques
-PaperAuthoredBy <- sapply(UniqueAuthors, function(Author) str_detect(str_to_lower(AuthorsASCII), str_to_lower(Author)))
+PaperAuthoredBy <- sapply(UniqueAuthors, function(Author) str_detect(str_to_upper(AuthorsASCII), Author))
 # Filtrage des auteurs
 tibble(Author=UniqueAuthors, NbPapers=colSums(PaperAuthoredBy)) %>% 
   filter(NbPapers >= MinCopublications) %>% 
@@ -156,7 +156,7 @@ tibble(Author=UniqueAuthors, NbPapers=colSums(PaperAuthoredBy)) %>%
   NbPapersPerAuthor
 # Recalcul de la matrice d'autorat réduite
 PaperAuthoredBy <- sapply(NbPapersPerAuthor$Author, 
-                          function(Author) str_detect(AuthorsASCII, Author))
+                          function(Author) str_detect(str_to_upper(AuthorsASCII), Author))
 # Matrice d'adjacence
 adjacencyMatrix <- t(PaperAuthoredBy) %*% PaperAuthoredBy
 # Graphe d'adjacence  
