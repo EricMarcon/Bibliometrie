@@ -120,7 +120,7 @@ get_coauthors(AuthorID, n_coauthors = 5, n_deep=1) %>%
   plot_coauthors
 ```
 
-Les coateurs réels, définis par le nombre de publications écrites en commun, sont à rechercher dans le tableau des publications.
+Les coauteurs réels, définis par le nombre de publications écrites en commun, sont à rechercher dans le tableau des publications.
 
 ```{r coauthors, message=FALSE}
 # Paramètres
