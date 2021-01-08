@@ -9,13 +9,10 @@ Depends:
   R (>= 3.1.0)
 Imports:
   bibliometrix,
-  EcoFoG,
   ggraph,
   kableExtra,
   scholar,
   tidyverse,
   tm,
   wordcloud
-Remotes:
-  EcoFoG/EcoFoG
 License: GPL-3
