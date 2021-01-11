@@ -1,5 +1,6 @@
 # Bibliométrie avec R
 
+![stability-wip](https://img.shields.io/badge/lifecycle-stable-brightgreen.svg)
 ![rmarkdown](https://github.com/EricMarcon/Bibliometrie/workflows/rmarkdown/badge.svg)
 
 Utilisation de Google Scholar et de Scopus avec R pour analyser les publications d'une structure ou d'un auteur.
