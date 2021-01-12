@@ -13,14 +13,14 @@ lang: fr-FR # en-US
 babel: french # english
 always_allow_html: yes
 output:
-  bookdown::pdf_book:
-    base_format: EcoFoG::memo
-    latex_engine: xelatex
-    keep_tex: TRUE
   bookdown::html_document2:
     theme: sandstone
     toc: yes
     toc_float: yes
+  bookdown::pdf_book:
+    base_format: EcoFoG::memo
+    latex_engine: xelatex
+    keep_tex: TRUE
 ---
 
 ```{r Options, echo=FALSE, message=FALSE}
@@ -48,8 +48,8 @@ L'objectif est d'analyser la production d'un auteur (ou d'une structure) disposa
 Le paramètre de base est l'identifiant de l'auteur :
 
 ```{r}
-AuthorID <- "4iLBmbUAAAAJ" # Eric Marcon
-# AuthorID <- "8XqZyDUAAAAJ" # UMR EcoFoG
+# AuthorID <- "4iLBmbUAAAAJ" # Eric Marcon
+AuthorID <- "8XqZyDUAAAAJ" # UMR EcoFoG
 ```
 
 La vignette du package fournit la majorité du code utile.
@@ -122,13 +122,18 @@ get_coauthors(AuthorID, n_coauthors = 5, n_deep=1) %>%
 Les coauteurs réels, définis par le nombre de publications écrites en commun, sont à rechercher dans le tableau des publications.
 
 ```{r coauthors, message=FALSE}
-# Paramètres
-MinCopublications <- 2
+### Paramètres
+# Augmenter pour limiter le nombre de coauteurs affichés
+MinCopublications <- 25
+# Eliminer les documents non cités (mémoires, artefacts)
+MinCitations <- 3
+# Eliminer les coauteurs les moins productifs
 MaxCoauteurs <- 100
 
 library("magrittr")
 # Vecteur des coauteurs de publications, sans accents
 get_publications(AuthorID) %>% 
+  dplyr::filter(cites >= MinCitations) %>% 
   mutate(AuthorsASCII=iconv(author, from="UTF-8", to="ASCII//TRANSLIT")) %$% 
   AuthorsASCII %>% 
   # Suppression des accents transformés en ' sur MacOS
