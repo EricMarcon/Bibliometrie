@@ -121,7 +121,7 @@ get_coauthors(AuthorID, n_coauthors = 5, n_deep=1) %>%
 
 Les coauteurs réels, définis par le nombre de publications écrites en commun, sont à rechercher dans le tableau des publications.
 
-```{r coauthors, message=FALSE}
+```{r coauthors, message=FALSE, warning=FALSE}
 ### Paramètres
 # Augmenter pour limiter le nombre de coauteurs affichés
 MinCopublications <- 25
@@ -184,7 +184,7 @@ ggraph(g, layout = "auto") +
     axis.title = element_blank(),
     axis.ticks = element_blank()) +
   labs(title = paste("Coauthorship Network of", get_profile(AuthorID)$name),
-       subtitle = "Publications with more than one Google Scholar citation included",
+       subtitle = paste("Publications with at least", MinCitations, "Google Scholar citations included"),
        caption = paste("Coauthors with at least", MinCopublications, "copublications"))
 ```
 
