@@ -23,7 +23,7 @@ output:
     keep_tex: TRUE
 ---
 
-```{r Options, echo=FALSE, message=FALSE}
+```{r Options, include=FALSE}
 knitr::opts_chunk$set(cache=TRUE, echo = TRUE, tidy=FALSE, tidy.opts=list(blank=FALSE, width.cutoff=50), out.width='\\maxwidth')
 options(width=50)
 # Installation des packages si nécessaire et chargement
@@ -126,7 +126,7 @@ Les coauteurs réels, définis par le nombre de publications écrites en commun,
 # Augmenter pour limiter le nombre de coauteurs affichés
 MinCopublications <- 25
 # Eliminer les documents non cités (mémoires, artefacts)
-MinCitations <- 3
+MinCitations <- 2
 # Eliminer les coauteurs les moins productifs
 MaxCoauteurs <- 100
 
